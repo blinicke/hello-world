@@ -1,0 +1,722 @@
+module project_2
+  (
+    CLOCK_50, // On Board 50 MHz
+    KEY,
+    GPIO_1,
+    LEDR,
+    HEX0,
+
+// The ports below are for the VGA output. Do not change.
+    VGA_CLK, // VGA Clock
+    VGA_HS, // VGA H_SYNC
+    VGA_VS, // VGA V_SYNC
+    VGA_BLANK_N, // VGA BLANK
+    VGA_SYNC_N, // VGA SYNC
+    VGA_R, // VGA Red[9:0]
+    VGA_G, // VGA
+    Green[9:0]
+    VGA_B, // VGA Blue[9:0]
+
+    SW,
+    AUD_ADCDAT,
+
+    // Bidirectionals
+    AUD_BCLK,
+    AUD_ADCLRCK,
+    AUD_DACLRCK,
+    I2C_SDAT,
+    // Outputs
+    AUD_XCK,
+    AUD_DACDAT,
+    I2C_SCLK
+    );
+
+  input CLOCK_50; // 50 MHz
+  input [3:0]KEY;
+  input [5:0]GPIO_1;
+  output [6:0]HEX0; //for showing the delay is working
+  output [4:0]LEDR;
+
+  // Do not change the following outputs
+  output VGA_CLK; // VGA
+  Clock
+  output VGA_HS; // VGA
+  H_SYNC
+  output VGA_VS; // VGA
+  V_SYNC
+  output VGA_BLANK_N; // VGA
+  BLANK
+  output VGA_SYNC_N; // VGA
+  SYNC
+  output [9:0] VGA_R; // VGA Red[9:0]
+  output [9:0] VGA_G; // VGA
+  Green[9:0]
+  output [9:0] VGA_B; // VGA Blue[9:0]
+
+  //sensor*************************************
+  input [3:0]SW;
+  input AUD_ADCDAT;
+  // Bidirectionals
+  inout AUD_BCLK;
+  inout AUD_ADCLRCK;
+  inout AUD_DACLRCK;
+  inout I2C_SDAT;
+
+  // Outputs
+  output AUD_XCK;
+  output AUD_DACDAT;
+  output I2C_SCLK;
+  // Create the colour, x, y and writeEn, resetn wires that are inputs to the controller.
+  wire resetn; // to reset the counter for delay, give counter 1
+  initial value 0; probably not necessary
+  wire change;
+  wire yes_g;
+  wire no_g;
+  assign resetn = KEY[0];
+  assign change = KEY[1]; //change the question
+  assign yes_g = GPIO_1[2];
+  assign no_g = GPIO_1[3];
+  
+  assign LEDR[1] = yes; // after delay
+  assign LEDR[0] = no;
+////////////////////extra
+  DE2_Audio_Example u12(
+  // Inputs
+  .CLOCK_50(CLOCK_50),
+  .KEY(KEY[3:0]),
+  .SW(SW[3:0]),
+
+  //sensor
+  .yes(yes),
+  .no(no),
+  .AUD_ADCDAT(AUD_ADCDAT),
+  // Bidirectionals
+  .AUD_BCLK(AUD_BCLK),
+  .AUD_ADCLRCK(AUD_ADCLRCK),
+  .AUD_DACLRCK(AUD_DACLRCK),
+  .I2C_SDAT(I2C_SDAT),
+  // Outputs
+  .AUD_XCK(AUD_XCK),
+  .AUD_DACDAT(AUD_DACDAT),
+  .I2C_SCLK(I2C_SCLK)
+);
+
+  wire equal_F;
+  wire enable;
+  reg [27:0] count1;
+  reg [3:0] count2;
+  
+  //block 1
+always@(posedge CLOCK_50) 
+  begin
+    if(!resetn | enable)
+      count1 <= 0;
+    else
+      count1 <= count1 + 1'b1;
+  end
+  
+  assign enable = (count1 == 28'd 49999999)?1'b1:1'b0; //1hz
+  reg yes;
+  reg no;
+
+  //block 3
+always @(posedge CLOCK_50)  
+  begin
+    if(!resetn |equal_F)
+      count2 <= 4'b0000;
+    else if(enable)
+      count2 <= count2 + 1'b1;
+      yes <= yes_g; //load yes, no
+      no <= no_g;
+  end
+
+  //block 4
+  assign equal_F = (count2 == 4'b1111)? 1'b1:1'b0;
+  HEX u(count2, HEX0);
+  
+  reg [7:0]x;
+  reg [6:0]y;
+  reg [14:0]address;
+  reg plot;
+  always @(posedge CLOCK_50)
+    if(!change || start)
+      begin
+        plot <= 1;
+        begin
+          if(address < 19200)
+            begin
+              if(address == 0)
+                begin
+                  x <= 0;
+                  y <= 0;
+                end
+              address <= address + 1;
+              x <= x + 1;
+              if(x == 159)
+              begin
+                x <= 0;
+                y <= y + 1;
+              end
+              if(y == 319)
+                begin
+                  x <= 0;
+                  y <= 0;
+                end
+              end
+            end
+          end
+        else
+          begin
+            plot <= 0;
+            address <= 0;
+            x<=0;
+            y<=0;
+          end
+          
+          // colour output from ROM
+wire [2:0]q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15, q16, q17, q18; //doesn't matter to declare wire here
+
+rom_1 r0( //question 1
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q1) //3bits
+);
+
+rom_2 r1( //question 2
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q2) //3bits
+);
+
+rom_3 r2( //question 3
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q3) //3bits
+);
+
+rom_4 r3( //ans 1 child
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q4) //3bits
+);
+
+rom_5 r4( //ans 2 ballerina
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q5) //3bits
+);
+
+rom_6 r5( //ans 3 nobel prize
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q6) //3bits
+);
+
+rom_7 r6( //ans 4 trump
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q7) //3bits
+);
+
+rom_8 r7( //ans 5 casaloma
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q16) //3bits
+);
+
+rom_25 r25( //ans 6 krystal
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q8) //3bits
+);
+
+rom_10 r9( //ans 7 zissis
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q9) //3bits
+);
+
+rom_11 r10( //ans 8 tv show
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q10) //3bits
+);
+
+rom_12 r11( //question dance 4
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q11) //3bits
+);
+
+rom_17 r12( //question day 5
+.address(address), //15 bits //
+.clock(CLOCK_50),
+.q(q12) //3bits
+);
+
+rom_14 r13( //question dog 6
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q13) //3bits
+);
+
+rom_18 r14( //question fries 7
+.address(address), //15 bits //
+.clock(CLOCK_50),
+.q(q14) //3bits
+);
+
+rom_16 r15( //question grandma 8
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q15) //3bits
+);
+
+rom_21 r21( //intro
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q17) //3bits
+);
+
+rom_22 r22( //q to a
+.address(address), //15 bits
+.clock(CLOCK_50),
+.q(q18) //3bits
+);
+
+// fsm to determine question/answer stage; ouput decide
+
+wire [3:0]decide;
+wire start; // start the game by touching both sensors
+
+assign start = (!yes) && (!no);
+assign LEDR[3] = start;
+control c0(CLOCK_50,resetn,change,start,decide,ld_ans);
+
+//****************************************** ANS*******************************
+
+control_ans c1(CLOCK_50,resetn,yes,no,ld_ans_1, ld_ans_2, ld_ans_3,
+ld_ans_4, ld_ans_5, ld_ans_6, ld_ans_7, ld_ans_8);
+
+//**************************************** decide: case statement***********************
+reg [2:0]colour;
+always@(*)
+  begin
+    if(decide == 4'd0 && !ld_ans)
+      begin
+        colour <= q1;
+      end
+    else if(decide == 4'd1 && !ld_ans)
+      begin
+        colour <= q2;
+      end
+    else if(decide == 4'd9 && !ld_ans) //intro
+      begin
+        colour <= q17;
+      end
+    else if(decide == 4'd2 && !ld_ans)
+      begin
+        colour <= q3;
+      end
+      else if(decide == 4'd3 && !ld_ans)
+        begin
+          colour <= q11;
+        end
+      else if(decide == 4'd4 && !ld_ans) //
+        begin
+          colour <= q12;
+        end
+      else if(decide == 4'd5 && !ld_ans)
+        begin
+          colour <= q13;
+        end
+      else if(decide == 4'd6 && !ld_ans) //
+        begin
+          colour <= q14;
+        end
+      else if(decide == 4'd10 && !ld_ans) //q to a
+        begin
+          colour <= q18;
+        end
+      else if(decide == 4'd7 && !ld_ans)
+        begin
+          colour <= q15;
+        end
+      else if(ld_ans)
+        if(ld_ans_1)
+          begin
+            colour <= q4;
+          end
+      else if(ld_ans_2)
+          begin
+            colour <= q5;
+          end
+      else if(ld_ans_3)
+          begin
+            colour <= q6;
+          end
+      else if(ld_ans_4)
+          begin
+            colour <= q7;
+          end
+      else if(ld_ans_5)
+          begin
+            colour <= q16;
+          end
+      else if(ld_ans_6)
+          begin
+            colour <= q8;
+          end
+      else if(ld_ans_7)
+          begin
+            colour <= q9;
+          end
+      else if(ld_ans_8)
+          begin
+            colour <= q10;
+          end
+ end
+ 
+ // ************************************** VGA****************************************
+vga_adapter VGA(
+.resetn(resetn),
+.clock(CLOCK_50),
+.colour(colour),
+.x(x),
+.y(y),
+.plot(plot),
+.VGA_R(VGA_R),
+.VGA_G(VGA_G),
+.VGA_B(VGA_B),
+.VGA_HS(VGA_HS),
+.VGA_VS(VGA_VS),
+.VGA_BLANK(VGA_BLANK_N),
+.VGA_SYNC(VGA_SYNC_N),
+.VGA_CLK(VGA_CLK));
+defparam VGA.RESOLUTION = "160x120";
+defparam VGA.MONOCHROME = "FALSE";
+defparam VGA.BITS_PER_COLOUR_CHANNEL = 1;
+defparam VGA.BACKGROUND_IMAGE = "image.colour.mif";
+endmodule
+
+// *********************************** MONDULE: control***********************************
+module control(
+input clk,
+input resetn,
+input go,
+input start,
+output reg [3:0]decide,
+output reg ld_ans
+);
+// *********************** fsm *******************************
+reg [5:0] current_state, next_state;
+localparam
+  pic_1 = 5'd0,
+  pic_1_wait = 5'd1,
+  pic_2 = 5'd2,
+  pic_2_wait = 5'd3,
+  pic_3 = 5'd4,
+  pic_3_wait = 5'd5,
+  pic_4 = 5'd6,
+  pic_4_wait = 5'd7,
+  pic_5 = 5'd8,
+  pic_5_wait = 5'd9,
+  pic_6 = 5'd10,
+  pic_6_wait = 5'd11,
+  pic_7 = 5'd12,
+  pic_7_wait = 5'd13,
+  pic_8 = 5'd14,
+  pic_8_wait = 5'd15,
+  pic_end = 5'd21,
+  pic_end_wait = 5'd22,
+  ans_ = 5'd16,
+  ans_wait = 5'd17,
+  pic_0 = 5'd20, //start
+  pic_0_wait = 5'd25; //start
+ 
+always@(*)
+  begin: state_table
+    case (current_state)
+    pic_0: next_state = start ? pic_0_wait :pic_0;
+    pic_0_wait: next_state = start ? pic_0_wait:pic_1 ;
+    pic_1: next_state = go ? pic_1 : pic_1_wait;
+    pic_1_wait: next_state = go ? pic_2 : pic_1_wait;
+    pic_2: next_state = go ? pic_2 : pic_2_wait;
+    pic_2_wait: next_state = go ? pic_3 :pic_2_wait;
+    pic_3: next_state = go ? pic_3 :pic_3_wait;
+    pic_3_wait: next_state = go? pic_4 :pic_3_wait;
+    pic_4: next_state = go ? pic_4 :pic_4_wait;
+    pic_4_wait: next_state = go? pic_5 :pic_4_wait;
+    pic_5: next_state = go ? pic_5 :pic_5_wait;
+    pic_5_wait: next_state = go? pic_6 :pic_5_wait;
+    pic_6: next_state = go ? pic_6 :pic_6_wait;
+    pic_6_wait: next_state = go? pic_7:pic_6_wait;
+    pic_7: next_state = go ? pic_7 :pic_7_wait;
+    pic_7_wait: next_state = go? pic_8 :pic_7_wait;
+    pic_8: next_state = go ? pic_8 :pic_8_wait;
+    pic_8_wait: next_state = go? pic_end :pic_8_wait;
+    pic_end: next_state = go ? pic_end :pic_end_wait;
+    pic_end_wait: next_state = go? ans_ :pic_end_wait;
+    ans_: next_state = go ? ans_ : ans_wait;
+    ans_wait: next_state = go ? pic_1 :ans_wait;
+    default: next_state = pic_0;
+   endcase
+ end // state_table
+
+always@(*)
+  begin: enable_signal
+    decide = 4'd0;
+    ld_ans = 0;
+    case(current_state)
+      pic_0:begin
+      decide = 4'd9;
+  end
+  pic_0_wait: begin
+  decide = 4'd9;
+  end
+  pic_1: begin
+  decide = 4'd0;
+  end
+  pic_1_wait: begin
+  decide = 4'd0;
+  end
+  pic_2: begin
+  decide = 4'd1;
+  end
+  pic_2_wait: begin
+  decide = 4'd1;
+  end
+  pic_3: begin
+  decide = 4'd2;
+  end
+  pic_3_wait: begin
+  decide = 4'd2;
+  end
+  pic_4: begin
+  decide = 4'd3;
+  end
+  pic_4_wait: begin
+  decide = 4'd3;
+  end
+  pic_5: begin
+  decide = 4'd4;
+  end
+  pic_5_wait: begin
+  decide = 4'd4;
+  end
+  pic_6: begin
+  decide = 4'd5;
+  end
+  pic_6_wait: begin
+  decide = 4'd5;
+  end
+  pic_7: begin
+  decide = 4'd6;
+  end
+  pic_7_wait: begin
+  decide = 4'd6;
+  end
+  pic_8: begin
+  decide = 4'd7;
+  end
+  pic_8_wait: begin
+  decide = 4'd7;
+  end
+  ans_: begin
+  decide = 4'd8;
+  ld_ans = 1;
+  end
+  ans_wait: begin
+  decide = 4'd8;
+  ld_ans = 1;
+  end
+  pic_end: begin
+  decide = 4'd10;
+  end
+  pic_end_wait: begin
+  decide = 4'd10;
+  end
+  default: begin
+  decide = 4'd0;
+  end
+  endcase
+  end
+
+always@(posedge clk)
+  begin: state_FFS
+    if(!resetn)
+      current_state <= pic_0;
+    else
+      current_state <= next_state;
+  end
+  endmodule
+  // *********************************** MONDULE: control_ans***********************************
+module control_ans(
+input clk,
+input resetn,
+input yes,
+input no,
+output reg ld_ans_1,
+output reg ld_ans_2,
+output reg ld_ans_3,
+output reg ld_ans_4,
+output reg ld_ans_5,
+output reg ld_ans_6,
+output reg ld_ans_7,
+output reg ld_ans_8
+);
+// *********************** fsm *******************************
+reg [5:0] current_state, next_state;
+localparam 
+  ans_1 = 5'd0,
+  ans_1_wait = 5'd1,
+  ans_2 = 5'd2,
+  ans_2_wait = 5'd3,
+  ans_3 = 5'd4,
+  ans_3_wait = 5'd5,
+  ans_4 = 5'd6,
+  ans_4_wait = 5'd7,
+  ans_5 = 5'd8,
+  ans_5_wait = 5'd9,
+  ans_6 = 5'd10,
+  ans_6_wait = 5'd11,
+  ans_7 = 5'd12,
+  ans_7_wait = 5'd13,
+  ans_8 = 5'd14,
+  ans_8_wait = 5'd15;
+always@(*)
+ begin: state_table
+ case (current_state)
+ ans_1: next_state = yes ? ans_1 : ans_1_wait;
+  //never press yes, goes to ans_1
+ ans_1_wait: next_state = yes ? ans_2 :ans_1_wait;
+ ans_2: next_state = no ? ans_2 : ans_2_wait;
+  //press yes 1 time, goes to ans_2
+ ans_2_wait: next_state = no ? ans_3 : ans_2_wait;
+ ans_3: next_state = yes ? ans_3 : ans_3_wait;
+ //press yes 2 times, goes to ans_2
+ ans_3_wait: next_state = yes ? ans_4 :
+ ans_3_wait;
+ ans_4: next_state = no ? ans_4 : ans_4_wait;
+//press yes 3 times, goes to ans_2
+ ans_4_wait: next_state = no ? ans_5 : ans_4_wait;
+ ans_5: next_state = yes ? ans_5 : ans_5_wait;
+//press yes 3 times, goes to ans_2
+ ans_5_wait: next_state = yes ? ans_6 :
+ ans_5_wait;
+ ans_6: next_state = no ? ans_6 : ans_6_wait;
+//press yes 3 times, goes to ans_2
+ ans_6_wait: next_state = no ? ans_7 : ans_6_wait;
+ ans_7: next_state = yes ? ans_7 : ans_7_wait;
+//press yes 3 times, goes to ans_2
+ ans_7_wait: next_state = yes ? ans_8 :
+ ans_7_wait;
+ ans_8: next_state = no ? ans_8 : ans_8_wait;
+//press yes 3 times, goes to ans_2
+ ans_8_wait: next_state = no ? ans_1 : ans_8_wait;
+ default: next_state = ans_1;
+ endcase
+ end // state_table
+
+always@(*)
+  begin: enable_signal
+    ld_ans_1 = 0;
+    ld_ans_2 = 0;
+    ld_ans_3 = 0;
+    ld_ans_4 = 0;
+    ld_ans_5 = 0;
+    ld_ans_6 = 0;
+    ld_ans_7 = 0;
+    ld_ans_8 = 0;
+    case(current_state)
+      ans_1: begin
+        ld_ans_1 = 1;
+        end
+      ans_1_wait: begin
+        ld_ans_1 = 1;
+        end
+      ans_2: begin
+        ld_ans_2 = 1;
+        end
+      ans_2_wait: begin
+        ld_ans_2 = 1;
+        end
+      ans_3: begin
+        ld_ans_3 = 1;
+        end
+      ans_3_wait: begin
+        ld_ans_3 = 1;
+        end
+      ans_4: begin
+        ld_ans_4 = 1;
+        end
+      ans_4_wait: begin
+        ld_ans_4 = 1;
+        end
+      ans_5: begin
+        ld_ans_5 = 1;
+        end
+      ans_5_wait: begin
+        ld_ans_5 = 1;
+        end
+      ans_6: begin
+        ld_ans_6 = 1;
+        end
+      ans_6_wait: begin
+        ld_ans_6 = 1;
+        end
+      ans_7: begin
+        ld_ans_7 = 1;
+        end
+      ans_7_wait: begin
+        ld_ans_7 = 1;
+        end
+      ans_8: begin
+        ld_ans_8 = 1;
+        end
+      ans_8_wait: begin
+        ld_ans_8 = 1;
+        end
+      default: begin
+        ld_ans_1 = 1;
+        end
+    endcase
+end
+
+always@(posedge clk)
+  begin: state_FFS
+    if(!resetn)
+      current_state <= ans_1;
+    else
+      current_state <= next_state;
+end
+endmodule
+
+// *********************************** MONDULE: HEX***********************************
+module HEX(Binary, HEXi);
+ input [3:0]Binary;
+ output reg [6:0]HEXi;
+
+always @ (*)
+ begin
+    case(Binary[3:0])
+    4'b0000: {HEXi[6:0]} = 'b1000000;
+    4'b0001: {HEXi[6:0]} = 'b1111001;
+    4'b0010: {HEXi[6:0]} = 'b0100100;
+    4'b0011: {HEXi[6:0]} = 'b0110000;
+    4'b0100: {HEXi[6:0]} = 'b0011001;
+    4'b0101: {HEXi[6:0]} = 'b0010010;
+    4'b0110: {HEXi[6:0]} = 'b0000010;
+    4'b0111: {HEXi[6:0]} = 'b1111000;
+    4'b1000: {HEXi[6:0]} = 'b0000000;
+    4'b1001: {HEXi[6:0]} = 'b0010000;
+    4'b1010: {HEXi[6:0]} = 'b0001000;
+    4'b1011: {HEXi[6:0]} = 'b0000011;
+    4'b1100: {HEXi[6:0]} = 'b1000110;
+    4'b1101: {HEXi[6:0]} = 'b0100001;
+    4'b1110: {HEXi[6:0]} = 'b0000110;
+    4'b1111: {HEXi[6:0]} = 'b0001110;
+    default: {HEXi[6:0]} = 'b0000000;
+endcase
+end
+endmodule
